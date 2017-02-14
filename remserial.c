@@ -55,7 +55,18 @@ int connect_to(struct sockaddr_in *addr);
 void usage(char *progname);
 void link_slave(int fd);
 
-int main(int argc, char *argv[])
+int void reset ()
+{
+   int DTR_flag;
+   DTR_flag = TIOCM_DTR;
+  
+   ioctl(devfd,TIOCMBIC,&DTR_flag);//Clear DTR pin
+   usleep(300);
+   ioctl(devfd,TIOCMBIS,&DTR_flag);//Set Dtr pin
+          syslog(LOG_INFO, "DTR pulse");
+}
+
+main(int argc, char *argv[])
 {
 	int result;
 	extern char *optarg;
@@ -112,14 +123,20 @@ int main(int argc, char *argv[])
 
 	openlog("remserial", LOG_PID, LOG_USER);
 
-	if (writeonly)
-		devfd = open(sdevname,O_WRONLY);
-	else
-		devfd = open(sdevname,O_RDWR);
-	if ( devfd == -1 ) {
-		syslog(LOG_ERR, "Open of %s failed: %m",sdevname);
-		exit(2);
-	}
+      if (writeonly)
+                devfd = open(sdevname,O_WRONLY | O_NOCTTY | O_NDELAY );
+        else
+                devfd = open(sdevname,O_RDWR| O_NOCTTY | O_NDELAY);
+
+        if ( devfd == -1 ) {
+                syslog(LOG_ERR, "Open of %s failed: %m",sdevname);
+                exit(2);
+        }
+     /* Cancel the O_NDELAY flag. */
+        int n = fcntl(devfd, F_GETFL, 0);
+        fcntl(devfd, F_SETFL, n & ~O_NDELAY);
+
+          syslog(LOG_INFO, "Device opened");
 
 	if (linkname)
 		link_slave(devfd);
@@ -243,6 +260,7 @@ int main(int argc, char *argv[])
 					(int)(ip>>16)&0xff,
 					(int)(ip>>8)&0xff,
 					(int)(ip>>0)&0xff);
+				reset();
 			}
 			else {
 				// Too many connections, just close it to reject
