@@ -1,3 +1,7 @@
+Differences of current fork
+1. Async port opening allows to work with some odd USB-serial chips
+2. DTR pulse then client connected allow remote re-programming Arduino connected by avrdude
+
 Remserial
 ---------
 
