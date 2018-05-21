@@ -33,6 +33,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <pwd.h>
+#include <grp.h>
 
 struct sockaddr_in addr,remoteaddr;
 int sockfd = -1;
@@ -55,7 +59,15 @@ int connect_to(struct sockaddr_in *addr);
 void usage(char *progname);
 void link_slave(int fd);
 
-int void reset ()
+int alldigits(const char *s)
+{
+	while(isdigit(*s))
+		s++;
+	return *s == '\0';
+}
+
+
+void reset ()
 {
    int DTR_flag;
    DTR_flag = TIOCM_DTR;
@@ -345,6 +357,8 @@ void sighandler(int sig)
 {
 	int i;
 
+    syslog(LOG_INFO,"sigHandler invoked, sig: %d", sig);
+    
 	if ( sockfd != -1 )
 		close(sockfd);
 	for (i=0 ; i<curConnects ; i++)
@@ -357,15 +371,72 @@ void sighandler(int sig)
 	exit(0);
 }
 
-void link_slave(int fd)
+uid_t find_uid(const char *u)
 {
+	struct passwd *pw;
+
+    syslog(LOG_INFO, "find_uid: %s", u);
+    
+	if (alldigits(u))
+		return atoi(u);
+
+    syslog(LOG_INFO, "getpwnam: %s", u);
+	if (!(pw = getpwnam(u)))
+		syslog(LOG_ERR,"Error finding user '%s': %s",u,strerror(errno));
+
+    syslog(LOG_INFO, "Found pw->pw_uid: %d", pw->pw_uid);
+	return pw->pw_uid;
+}
+
+gid_t find_gid(const char *g)
+{
+	struct group *gr;
+
+    syslog(LOG_INFO, "find_gid: %s", g);
+    
+	if (alldigits(g))
+		return atoi(g);
+
+    syslog(LOG_INFO, "getgrnam: %s", g);
+	if (!(gr = getgrnam(g)))
+		syslog(LOG_ERR,"Error finding group '%s': %s",g,strerror(errno));
+
+    syslog(LOG_INFO, "Found gr->gr_gid: %d", gr->gr_gid);
+	return gr->gr_gid;
+}
+
+
+void link_slave(int fd)
+{   
+    syslog(LOG_INFO, "Link slave");
+
+    uid_t frontend_owner = find_uid(strdup("pi"));
+    gid_t frontend_group = find_gid(strdup("dialout"));
+    mode_t frontend_mode = -1;
 	char *slavename;
+    
 	int status = grantpt(devfd);
 	if (status != -1)
 		status = unlockpt(devfd);
 	if (status != -1) {
+        
+        syslog(LOG_INFO, "Get the slave name.");
 		slavename = ptsname(devfd);
 		if (slavename) {
+            syslog(LOG_INFO, "Current slavename: %s", slavename);
+            
+            
+            if (chown(slavename, frontend_owner, frontend_group) < 0) {
+                syslog(LOG_ERR, "Couldn't chown backend device to uid=%d, gid=%d: %s",frontend_owner,frontend_group,strerror(errno));
+			}
+			else {
+				fprintf(stderr, "Changed owner of frontend successfully.\n");
+                syslog(LOG_INFO, "Changed owner of frontend successfully.");
+			}
+			if (chmod(slavename, frontend_mode & 07777) < 0) {
+				syslog(LOG_ERR, "Couldn't set permissions on tty '%s': %s",strerror(errno));
+            }
+            
 			// Safety first
 			unlink(linkname);
 			status = symlink(slavename, linkname);
