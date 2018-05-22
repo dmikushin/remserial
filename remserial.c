@@ -46,6 +46,9 @@ int devfd;
 int *remotefd;
 char *machinename = NULL;
 char *sttyparms = NULL;
+char *username = NULL;
+char *groupname = NULL;
+
 static char *sdevname = NULL;
 char *linkname = NULL;
 int isdaemon = 0;
@@ -93,7 +96,7 @@ main(int argc, char *argv[])
 	int writeonly = 0;
 	register int i;
 
-	while ( (c=getopt(argc,argv,"dl:m:p:r:s:wx:")) != EOF )
+	while ( (c=getopt(argc,argv,"dl:m:p:r:s:wx:u:g:")) != EOF )
 		switch (c) {
 		case 'd':
 			isdaemon = 1;
@@ -115,6 +118,12 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			sttyparms = optarg;
+			break;
+		case 'u':
+			username = optarg;
+			break;
+		case 'g':
+			groupname = optarg;
 			break;
 		case 'w':
 			writeonly = 1;
@@ -408,10 +417,17 @@ gid_t find_gid(const char *g)
 
 void link_slave(int fd)
 {   
-    syslog(LOG_INFO, "Link slave");
+    if (username == NULL) {
+        username = "pi";
+    }
+    if (groupname == NULL) {
+        groupname = "dialout";
+    }
 
-    uid_t frontend_owner = find_uid(strdup("pi"));
-    gid_t frontend_group = find_gid(strdup("dialout"));
+    syslog(LOG_INFO, "Link slave, username: %s, groupname: %s", username, groupname);
+
+    uid_t frontend_owner = find_uid(username);
+    gid_t frontend_group = find_gid(groupname);
     mode_t frontend_mode = -1;
 	char *slavename;
     
@@ -506,7 +522,7 @@ connect_to(struct sockaddr_in *addr)
 }
 
 void usage(char *progname) {
-	printf("Remserial version 1.3.  Usage:\n");
+	printf("Remserial version 1.4.  Usage:\n");
 	printf("remserial [-r machinename] [-p netport] [-s \"stty params\"] [-m maxconnect] device\n\n");
 
 	printf("-r machinename		The remote machine name to connect to.  If not\n");
@@ -518,5 +534,7 @@ void usage(char *progname) {
 	printf("-x debuglevel		Set debug level, 0 is default, 1,2 give more info\n");
 	printf("-l linkname		If the device name is a pseudo-tty, create a link to the slave\n");
 	printf("-w          		Only write to the device, no reading\n");
+	printf("-u user		    The user that is the owner for the link to the slave, default is 'pi'\n");
+	printf("-g group		The group that is the owner for the link to the slave, default is 'pi'\n");
 	printf("device			I/O device, either serial port or pseudo-tty master\n");
 }

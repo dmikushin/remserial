@@ -150,5 +150,7 @@ remserial [-r machinename] [-p netport] [-s "stty params"] device
                         to the corresponding slave pseudo-tty so that another
 			application has a static device name to use.
 -m max-connections	Maximum number of simultaneous client connections to allow
+-u username     The username that is used as owner for the symlink
+-g groupname     The groupname that is used as owner for the symlink
 device			Character oriented device node such as /dev/ttyS0.
 
