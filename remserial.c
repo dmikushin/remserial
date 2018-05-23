@@ -20,6 +20,11 @@
  * This program acts as a bridge either between a socket(2) and a
  * serial/parallel port or between a socket and a pseudo-tty.
  */
+ 
+#if defined(__linux__) || defined(__GLIBC__) || defined(__GNU__)
+#define _XOPEN_SOURCE 500 /* GNU glibc grantpt() prototypes */
+#endif 
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,8 +40,12 @@
 #include <netdb.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <pwd.h>
 #include <grp.h>
+#include <ctype.h>
+#include <unistd.h>
+
 
 struct sockaddr_in addr,remoteaddr;
 int sockfd = -1;
@@ -54,8 +63,12 @@ char *linkname = NULL;
 int isdaemon = 0;
 fd_set fdsread,fdsreaduse;
 struct hostent *remotehost;
-extern char* ptsname(int fd);
 int curConnects = 0;
+
+extern char* ptsname(int fd);
+
+
+extern int set_tty(int fd,char *settings);
 
 void sighandler(int sig);
 int connect_to(struct sockaddr_in *addr);
@@ -81,7 +94,7 @@ void reset ()
           syslog(LOG_INFO, "DTR pulse");
 }
 
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	int result;
 	extern char *optarg;
