@@ -211,6 +211,12 @@ int main(int argc, char *argv[])
 			exit(4);
 		}
 
+		int reuse = 1;
+		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0) {		
+			syslog(LOG_ERR, "Can't reuse socket: %m");
+		        exit(4);  
+        	}  
+		
 		addr.sin_family = AF_INET;
 		addr.sin_addr.s_addr = 0;
 		addr.sin_port = htons(port);
