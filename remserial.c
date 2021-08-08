@@ -469,7 +469,7 @@ void link_slave(int fd)
                 syslog(LOG_INFO, "Changed owner of frontend successfully.");
 			}
 			if (chmod(slavename, frontend_mode & 07777) < 0) {
-				syslog(LOG_ERR, "Couldn't set permissions on tty '%s': %s",strerror(errno));
+				syslog(LOG_ERR, "Couldn't set permissions on tty '%s': %s", slavename, strerror(errno));
             }
             
 			// Safety first
